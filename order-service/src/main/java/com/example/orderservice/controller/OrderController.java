@@ -5,7 +5,10 @@ import com.example.orderservice.jpa.OrderEntity;
 import com.example.orderservice.service.OrderService;
 import com.example.orderservice.vo.RequestOrder;
 import com.example.orderservice.vo.ResponseOrder;
+import com.example.orderservice.messagequeue.KafkaProducer;
 import lombok.RequiredArgsConstructor;
+
+
 import org.modelmapper.ModelMapper;
 import org.modelmapper.convention.MatchingStrategies;
 import org.springframework.core.env.Environment;
@@ -23,6 +26,7 @@ public class OrderController {
 
     private final Environment env;
     private final OrderService orderService;
+    private final KafkaProducer kafkaProducer;
 
     @GetMapping("/health_check")
     public String status(){
@@ -34,10 +38,18 @@ public class OrderController {
     public ResponseEntity<ResponseOrder> createOrder(@PathVariable("userId") String userId,@RequestBody RequestOrder orderDetails){
         ModelMapper mapper= new ModelMapper();
         mapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STRICT);
+
+        /*JPA*/
         OrderDto orderDto = mapper.map(orderDetails, OrderDto.class);
         orderDto.setUserId(userId);
-        OrderDto createOrder = orderService.createOrder(orderDto);
-        ResponseOrder responseOrder = mapper.map(createOrder, ResponseOrder.class);
+
+//        OrderDto createOrder = orderService.createOrder(orderDto);
+//        ResponseOrder responseOrder = mapper.map(createOrder, ResponseOrder.class);
+
+        
+
+        /*send this order to the kafka*/
+        kafkaProducer.send("example-catalog-topic",orderDto);
         return ResponseEntity.status(HttpStatus.OK).body(responseOrder);
     }
 
@@ -52,4 +64,6 @@ public class OrderController {
 
         return ResponseEntity.status(HttpStatus.OK).body(result);
     }
+
+
 }
